@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة تحسين الذاكرة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e3f2fd;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #startScreen, #gameScreen, #rewardScreen {
+            display: none;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        button {
+            font-size: 24px;
+            padding: 12px 24px;
+            margin: 10px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+        }
+        #gameBoard {
+            display: grid;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .card {
+            width: 80px;
+            height: 80px;
+            background-color: #0288d1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #fff;
+            cursor: pointer;
+        }
+        .flipped, .matched {
+            background-color: #ffca28;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+
+<div id="startScreen">
+    <h1>لعبة تحسين الذاكرة</h1>
+    <p>مستوى: <span id="levelDisplay">1</span></p>
+    <button id="startBtn">▶️ ابدأ الجولة</button>
+    <p>النقاط الإجمالية: <span id="scoreDisplay">0</span></p>
+</div>
+
+<div id="gameScreen">
+    <div id="gameBoard"></div>
+</div>
+
+<div id="rewardScreen">
+    <h2>تهانينا! لقد أكملت الجولة.</h2>
+    <p>لقد جمعت <span id="roundPoints">0</span> نقطة.</p>
+    <p>تقييمك: <span id="stars">⭐⭐⭐</span></p>
+    <p>زهرة جديدة: <span id="flowerDisplay">🌸</span></p>
+    <button id="nextBtn">التالي</button>
+</div>
+
+<script>
+const startScreen = document.getElementById('startScreen');
+const gameScreen = document.getElementById('gameScreen');
+const rewardScreen = document.getElementById('rewardScreen');
+const startBtn = document.getElementById('startBtn');
+const nextBtn = document.getElementById('nextBtn');
+const levelDisplay = document.getElementById('levelDisplay');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const roundPointsSpan = document.getElementById('roundPoints');
+const starsSpan = document.getElementById('stars');
+const flowerDisplay = document.getElementById('flowerDisplay');
+const gameBoard = document.getElementById('gameBoard');
+
+let level = 1;
+let totalScore = 0;
+let icons = ['🍎','🍌','🍇','🍓','🍒','🍑','🥝','🍍','🥥','🍉','🍋','🍊'];
+let firstCard = null;
+let secondCard = null;
+let lockBoard = false;
+let matchesFound = 0;
+let maxPairs = 0;
+
+startScreen.style.display = 'block';
+
+startBtn.addEventListener('click', () => startRound());
+nextBtn.addEventListener('click', () => startRound());
+
+function startRound() {
+    // reset
+    startScreen.style.display = 'none';
+    rewardScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    matchesFound = 0;
+    
+    // grid size logic
+    let cols = 4;
+    let rows = 3;
+    if (level > 3) rows = 4;
+    if (level > 5) cols = 5;
+    gameBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    
+    // prepare cards
+    let pairCount = Math.min((cols*rows)/2, icons.length);
+    maxPairs = pairCount;
+    let selected = icons.slice(0, pairCount);
+    let tileIcons = [...selected, ...selected];
+    shuffle(tileIcons);
+    
+    // render
+    gameBoard.innerHTML = '';
+    tileIcons.forEach(icon => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.icon = icon;
+        card.textContent = '';
+        card.addEventListener('click', flipCard);
+        gameBoard.appendChild(card);
+    });
+}
+
+function flipCard() {
+    if (lockBoard || this.classList.contains('flipped') || this.classList.contains('matched')) return;
+    this.classList.add('flipped');
+    this.textContent = this.dataset.icon;
+    
+    if (!firstCard) {
+        firstCard = this;
+        return;
+    }
+    secondCard = this;
+    lockBoard = true;
+    
+    if (firstCard.dataset.icon === secondCard.dataset.icon) {
+        // match
+        firstCard.classList.add('matched');
+        secondCard.classList.add('matched');
+        matchesFound++;
+        totalScore++;
+        scoreDisplay.textContent = totalScore;
+        resetFlip();
+        if (matchesFound === maxPairs) endRound();
+    } else {
+        // no match
+        setTimeout(() => {
+            firstCard.classList.remove('flipped');
+            secondCard.classList.remove('flipped');
+            firstCard.textContent = '';
+            secondCard.textContent = '';
+            resetFlip();
+        }, 1000);
+    }
+}
+
+function resetFlip() {
+    [firstCard, secondCard] = [null, null];
+    lockBoard = false;
+}
+
+function endRound() {
+    gameScreen.style.display = 'none';
+    rewardScreen.style.display = 'block';
+    roundPointsSpan.textContent = matchesFound;
+    // stars based on attempts and time (simplified here)
+    starsSpan.textContent = matchesFound === maxPairs ? '⭐⭐⭐' : '⭐⭐';
+    flowerDisplay.textContent = '🌸';
+    level++;
+    levelDisplay.textContent = level;
+}
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+</script>
+
+</body>
+</html>
